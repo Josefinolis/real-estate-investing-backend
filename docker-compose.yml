@@ -10,7 +10,7 @@ services:
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://ia-trading-db:5432/realstate
       - SPRING_DATASOURCE_USERNAME=realstate
-      - SPRING_DATASOURCE_PASSWORD=RealState2025!
+      - SPRING_DATASOURCE_PASSWORD=RealState2025
       - FIREBASE_CREDENTIALS_PATH=/app/config/firebase-service-account.json
       - SCRAPER_ENABLED=true
     volumes:

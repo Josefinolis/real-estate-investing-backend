@@ -25,7 +25,7 @@ interface PropertyRepository : JpaRepository<Property, UUID>, JpaSpecificationEx
     @Query("""
         SELECT p FROM Property p
         WHERE p.isActive = true
-        AND (:city IS NULL OR LOWER(p.city) = LOWER(:city))
+        AND (:city IS NULL OR p.city = :city)
         AND (:operationType IS NULL OR p.operationType = :operationType)
         AND (:propertyType IS NULL OR p.propertyType = :propertyType)
         AND (:minPrice IS NULL OR p.price >= :minPrice)
@@ -53,7 +53,7 @@ interface PropertyRepository : JpaRepository<Property, UUID>, JpaSpecificationEx
         SELECT p FROM Property p
         WHERE p.isActive = true
         AND p.firstSeenAt > :since
-        AND (:city IS NULL OR LOWER(p.city) = LOWER(:city))
+        AND (:city IS NULL OR p.city = :city)
         AND (:operationType IS NULL OR p.operationType = :operationType)
         AND (:propertyType IS NULL OR p.propertyType = :propertyType)
         AND (:minPrice IS NULL OR p.price >= :minPrice)
