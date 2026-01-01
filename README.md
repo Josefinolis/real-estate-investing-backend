@@ -242,12 +242,35 @@ El sistema implementa rate limiting para evitar bloqueos:
 java -jar build/libs/real-state-investing-backend-0.0.1-SNAPSHOT.jar
 ```
 
-### Docker (opcional)
-```dockerfile
-FROM eclipse-temurin:17-jdk-alpine
-VOLUME /tmp
-COPY build/libs/*.jar app.jar
-ENTRYPOINT ["java","-jar","/app.jar"]
+### Docker
+
+El proyecto incluye `Dockerfile` y `docker-compose.yml` para despliegue.
+
+```bash
+# Build local
+docker compose build
+
+# Ejecutar
+docker compose up -d
+
+# Ver logs
+docker logs realstate-backend -f
+```
+
+## Despliegue en Producción
+
+El backend está desplegado en:
+- **URL:** `http://195.20.235.94:8081/api`
+- **Container:** `realstate-backend`
+- **Database:** PostgreSQL `realstate` en `ia-trading-db`
+
+### Actualizar despliegue
+```bash
+ssh root@195.20.235.94
+cd /opt/apps/real-estate-investing-backend
+git pull
+docker compose build --no-cache
+docker compose up -d --force-recreate
 ```
 
 ## Logs
