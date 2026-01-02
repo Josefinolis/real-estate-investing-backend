@@ -263,15 +263,9 @@ El backend está desplegado en:
 - **URL:** `http://195.20.235.94:8081/api`
 - **Container:** `realstate-backend`
 - **Database:** PostgreSQL `realstate` en `ia-trading-db`
+- **Infrastructure docs:** https://github.com/Josefinolis/documentation
 
-### Actualizar despliegue
-```bash
-ssh root@195.20.235.94
-cd /opt/apps/real-estate-investing-backend
-git pull
-docker compose build --no-cache
-docker compose up -d --force-recreate
-```
+El despliegue es automático via GitHub Actions en cada push a `main`.
 
 ## Logs
 
