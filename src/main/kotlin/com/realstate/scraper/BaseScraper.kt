@@ -42,15 +42,15 @@ abstract class BaseScraper(
                 .get()
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-
-            if (response.isSuccessful) {
-                response.body?.string()?.let { html ->
-                    Jsoup.parse(html, url)
+            httpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    response.body?.string()?.let { html ->
+                        Jsoup.parse(html, url)
+                    }
+                } else {
+                    logger.warn("Failed to fetch $url: ${response.code}")
+                    null
                 }
-            } else {
-                logger.warn("Failed to fetch $url: ${response.code}")
-                null
             }
         } catch (e: Exception) {
             logger.error("Error fetching $url: ${e.message}", e)
