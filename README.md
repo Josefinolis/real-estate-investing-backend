@@ -66,6 +66,8 @@ SCRAPER_ENABLED=true
 
 El despliegue es automático via GitHub Actions al hacer push a `main`.
 
-- **URL:** http://195.20.235.94:8081
+- **URL:** http://195.20.235.94/realstate
 - **Container:** `realstate-backend`
 - **Database:** PostgreSQL `realstate` en `ia-trading-db`
+
+> **Nota:** El acceso externo es via nginx reverse proxy en puerto 80. El puerto 8081 solo es accesible internamente.
