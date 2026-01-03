@@ -64,10 +64,31 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
+
+            # Login to GitHub Container Registry
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
             IMAGE_NAME=$(echo "ghcr.io/${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
+            # Pull latest image
             docker pull ${IMAGE_NAME}:latest
-            docker stop realstate-backend || true
-            docker rm realstate-backend || true
+
+            # Create network if not exists
+            docker network create ia-trading-network 2>/dev/null || true
+
+            # Create realstate database if not exists
+            docker exec ia-trading-db psql -U ia_trading -tc "SELECT 1 FROM pg_database WHERE datname = 'realstate'" | grep -q 1 || \
+              docker exec ia-trading-db psql -U ia_trading -c "CREATE DATABASE realstate"
+
+            # Create config directory if not exists
+            mkdir -p /opt/apps/real-estate-investing-backend/config
+
+            # Stop and remove old container
+            docker stop realstate-backend 2>/dev/null || true
+            docker rm realstate-backend 2>/dev/null || true
+
+            # Run new container
             docker run -d \
               --name realstate-backend \
               --restart unless-stopped \
@@ -76,11 +97,27 @@ jobs:
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://ia-trading-db:5432/realstate \
               -e SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }} \
               -e SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \
               -e FIREBASE_CREDENTIALS_PATH=/app/config/firebase-service-account.json \
-              -e SCRAPER_ENABLED=true \
+              -e SCRAPER_ENABLED=false \
               -e JAVA_OPTS="-Xmx768m -Xms256m" \
               -v /opt/apps/real-estate-investing-backend/config:/app/config:ro \
               --memory=1g \
               --memory-swap=1.5g \
               ${IMAGE_NAME}:latest
+
+            # Cleanup old images
             docker image prune -f
+
+            # Wait for app to start
+            echo "Waiting for application to start..."
+            sleep 30
+
+            # Health check
+            if curl -sf http://localhost:8081/actuator/health > /dev/null 2>&1; then
+              echo "Health check passed!"
+            else
+              echo "Health check failed, checking container logs..."
+              docker logs realstate-backend --tail 50
+              # Don't fail the deploy, just log the issue
+            fi
