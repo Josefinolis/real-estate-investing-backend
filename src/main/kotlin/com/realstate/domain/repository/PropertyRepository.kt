@@ -26,24 +26,28 @@ interface PropertyRepository : JpaRepository<Property, UUID>, JpaSpecificationEx
         SELECT p FROM Property p
         WHERE p.isActive = true
         AND (:city IS NULL OR p.city = :city)
+        AND (:postalCode IS NULL OR p.postalCode = :postalCode)
         AND (:operationType IS NULL OR p.operationType = :operationType)
         AND (:propertyType IS NULL OR p.propertyType = :propertyType)
         AND (:minPrice IS NULL OR p.price >= :minPrice)
         AND (:maxPrice IS NULL OR p.price <= :maxPrice)
         AND (:minRooms IS NULL OR p.rooms >= :minRooms)
         AND (:maxRooms IS NULL OR p.rooms <= :maxRooms)
+        AND (:minBathrooms IS NULL OR p.bathrooms >= :minBathrooms)
         AND (:minArea IS NULL OR p.areaM2 >= :minArea)
         AND (:maxArea IS NULL OR p.areaM2 <= :maxArea)
         ORDER BY p.lastSeenAt DESC
     """)
     fun searchProperties(
         @Param("city") city: String?,
+        @Param("postalCode") postalCode: String?,
         @Param("operationType") operationType: OperationType?,
         @Param("propertyType") propertyType: PropertyType?,
         @Param("minPrice") minPrice: BigDecimal?,
         @Param("maxPrice") maxPrice: BigDecimal?,
         @Param("minRooms") minRooms: Int?,
         @Param("maxRooms") maxRooms: Int?,
+        @Param("minBathrooms") minBathrooms: Int?,
         @Param("minArea") minArea: BigDecimal?,
         @Param("maxArea") maxArea: BigDecimal?,
         pageable: Pageable

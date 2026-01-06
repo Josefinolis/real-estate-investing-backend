@@ -91,12 +91,13 @@ jobs:
               --restart unless-stopped \
               --network ia-trading-network \
               -p 8081:8080 \
+              -e SPRING_PROFILES_ACTIVE=prod \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://ia-trading-db:5432/realstate \
               -e SPRING_DATASOURCE_USERNAME=${{ secrets.DB_USER }} \
               -e SPRING_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }} \
               -e SPRING_JPA_HIBERNATE_DDL_AUTO=update \
               -e FIREBASE_CREDENTIALS_PATH=/app/config/firebase-service-account.json \
-              -e SCRAPER_ENABLED=false \
+              -e SCRAPER_ENABLED=true \
               -e JAVA_OPTS="-Xmx768m -Xms256m" \
               -v /opt/apps/real-estate-investing-backend/config:/app/config:ro \
               --memory=1g \

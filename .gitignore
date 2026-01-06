@@ -87,8 +87,7 @@ google-services.json
 *-firebase-adminsdk-*.json
 
 # Application specific
-application-local.yml
-application-local.properties
+# Keep application-local.yml and application-prod.yml tracked in repo
 
 # Temporary files
 *.tmp

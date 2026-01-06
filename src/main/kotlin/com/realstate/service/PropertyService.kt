@@ -33,12 +33,14 @@ class PropertyService(
 
         val page = propertyRepository.searchProperties(
             city = filter.city,
+            postalCode = filter.postalCode,
             operationType = filter.operationType,
             propertyType = filter.propertyType,
             minPrice = filter.minPrice,
             maxPrice = filter.maxPrice,
             minRooms = filter.minRooms,
             maxRooms = filter.maxRooms,
+            minBathrooms = filter.minBathrooms,
             minArea = filter.minArea,
             maxArea = filter.maxArea,
             pageable = pageable
@@ -97,6 +99,10 @@ class PropertyService(
                 areaM2 = property.areaM2
                 address = property.address
                 city = property.city
+                // Update postalCode if the new value is not null
+                if (property.postalCode != null) {
+                    postalCode = property.postalCode
+                }
                 zone = property.zone
                 latitude = property.latitude
                 longitude = property.longitude

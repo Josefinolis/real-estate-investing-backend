@@ -15,13 +15,30 @@ class IdealistaScraper(
     override val source = PropertySource.IDEALISTA
     override val baseUrl = "https://www.idealista.com"
 
-    // Default search URLs - can be configured
-    private val searchUrls = listOf(
-        "$baseUrl/venta-viviendas/madrid-madrid/",
-        "$baseUrl/alquiler-viviendas/madrid-madrid/",
-        "$baseUrl/venta-viviendas/barcelona-barcelona/",
-        "$baseUrl/alquiler-viviendas/barcelona-barcelona/"
+    // All Spanish province capitals - Format: city-province for Idealista
+    private val cityPairs = listOf(
+        "madrid-madrid", "barcelona-barcelona", "valencia-valencia", "sevilla-sevilla",
+        "zaragoza-zaragoza", "malaga-malaga", "murcia-murcia", "palma-de-mallorca-balears-illes",
+        "las-palmas-de-gran-canaria-las-palmas", "bilbao-vizcaya", "alicante-alacant-alicante",
+        "cordoba-cordoba", "valladolid-valladolid", "vigo-pontevedra", "gijon-asturias",
+        "vitoria-gasteiz-alava", "a-coruna-a-coruna", "granada-granada", "elche-elx-alicante",
+        "oviedo-asturias", "santa-cruz-de-tenerife-santa-cruz-de-tenerife",
+        "pamplona-iruna-navarra", "almeria-almeria", "donostia-san-sebastian-guipuzcoa",
+        "santander-cantabria", "burgos-burgos", "albacete-albacete", "castellon-de-la-plana-castello-de-la-plana-castellon",
+        "logrono-la-rioja", "badajoz-badajoz", "salamanca-salamanca", "huelva-huelva",
+        "lleida-lleida", "tarragona-tarragona", "leon-leon", "cadiz-cadiz", "jaen-jaen",
+        "ourense-ourense", "lugo-lugo", "girona-girona", "caceres-caceres", "guadalajara-guadalajara",
+        "toledo-toledo", "pontevedra-pontevedra", "palencia-palencia", "ciudad-real-ciudad-real",
+        "zamora-zamora", "avila-avila", "cuenca-cuenca", "huesca-huesca", "segovia-segovia",
+        "soria-soria", "teruel-teruel", "ceuta-ceuta", "melilla-melilla"
     )
+
+    private val searchUrls = cityPairs.flatMap { cityPair ->
+        listOf(
+            "$baseUrl/venta-viviendas/$cityPair/",
+            "$baseUrl/alquiler-viviendas/$cityPair/"
+        )
+    }
 
     override fun scrape(): List<Property> {
         val properties = mutableListOf<Property>()
@@ -88,6 +105,7 @@ class IdealistaScraper(
 
         val address = item.selectFirst(".item-detail-char .item-link")?.text()?.trim()
         val zone = item.selectFirst(".item-detail-char .item-link + span")?.text()?.trim()
+        val postalCode = extractPostalCodeFromAddress(address) ?: extractPostalCodeFromTitle(title)
 
         val imageUrl = item.selectFirst("img.item-gallery")?.attr("src")
         val imageUrls = if (imageUrl != null) arrayOf(imageUrl) else null
@@ -106,6 +124,7 @@ class IdealistaScraper(
             areaM2 = area,
             address = address,
             city = city,
+            postalCode = postalCode,
             zone = zone,
             imageUrls = imageUrls,
             url = if (href.startsWith("http")) href else "$baseUrl$href"
@@ -118,14 +137,25 @@ class IdealistaScraper(
     }
 
     private fun extractCityFromUrl(url: String): String {
-        return when {
-            url.contains("madrid") -> "Madrid"
-            url.contains("barcelona") -> "Barcelona"
-            url.contains("valencia") -> "Valencia"
-            url.contains("sevilla") -> "Sevilla"
-            url.contains("bilbao") -> "Bilbao"
-            else -> "España"
-        }
+        val cityMappings = mapOf(
+            "madrid" to "Madrid", "barcelona" to "Barcelona", "valencia" to "Valencia", "sevilla" to "Sevilla",
+            "zaragoza" to "Zaragoza", "malaga" to "Málaga", "murcia" to "Murcia", "palma-de-mallorca" to "Palma de Mallorca",
+            "las-palmas" to "Las Palmas de Gran Canaria", "bilbao" to "Bilbao", "alicante" to "Alicante",
+            "cordoba" to "Córdoba", "valladolid" to "Valladolid", "vigo" to "Vigo", "gijon" to "Gijón",
+            "vitoria" to "Vitoria-Gasteiz", "a-coruna" to "A Coruña", "granada" to "Granada", "elche" to "Elche",
+            "oviedo" to "Oviedo", "santa-cruz-de-tenerife" to "Santa Cruz de Tenerife",
+            "pamplona" to "Pamplona", "almeria" to "Almería", "donostia" to "San Sebastián", "san-sebastian" to "San Sebastián",
+            "santander" to "Santander", "burgos" to "Burgos", "albacete" to "Albacete",
+            "castellon" to "Castellón de la Plana", "logrono" to "Logroño", "badajoz" to "Badajoz",
+            "salamanca" to "Salamanca", "huelva" to "Huelva", "lleida" to "Lleida", "tarragona" to "Tarragona",
+            "leon" to "León", "cadiz" to "Cádiz", "jaen" to "Jaén", "ourense" to "Ourense", "lugo" to "Lugo",
+            "girona" to "Girona", "caceres" to "Cáceres", "guadalajara" to "Guadalajara", "toledo" to "Toledo",
+            "pontevedra" to "Pontevedra", "palencia" to "Palencia", "ciudad-real" to "Ciudad Real",
+            "zamora" to "Zamora", "avila" to "Ávila", "cuenca" to "Cuenca", "huesca" to "Huesca",
+            "segovia" to "Segovia", "soria" to "Soria", "teruel" to "Teruel", "ceuta" to "Ceuta", "melilla" to "Melilla"
+        )
+        val urlLower = url.lowercase()
+        return cityMappings.entries.firstOrNull { urlLower.contains(it.key) }?.value ?: "España"
     }
 
     private fun inferPropertyType(title: String?): PropertyType {
@@ -143,5 +173,19 @@ class IdealistaScraper(
             lowerTitle.contains("loft") -> PropertyType.LOFT
             else -> PropertyType.OTRO
         }
+    }
+
+    private fun extractPostalCodeFromAddress(address: String?): String? {
+        if (address == null) return null
+        // Look for 5-digit postal code in the address
+        val regex = Regex("\\b(\\d{5})\\b")
+        return regex.find(address)?.groupValues?.get(1)
+    }
+
+    private fun extractPostalCodeFromTitle(title: String?): String? {
+        if (title == null) return null
+        // Sometimes the postal code appears in the title
+        val regex = Regex("\\b(\\d{5})\\b")
+        return regex.find(title)?.groupValues?.get(1)
     }
 }

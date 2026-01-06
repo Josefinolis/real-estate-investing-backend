@@ -23,12 +23,14 @@ class PropertyController(
     @GetMapping
     fun searchProperties(
         @RequestParam(required = false) city: String?,
+        @RequestParam(required = false) postalCode: String?,
         @RequestParam(required = false) operationType: OperationType?,
         @RequestParam(required = false) propertyType: PropertyType?,
         @RequestParam(required = false) minPrice: BigDecimal?,
         @RequestParam(required = false) maxPrice: BigDecimal?,
         @RequestParam(required = false) minRooms: Int?,
         @RequestParam(required = false) maxRooms: Int?,
+        @RequestParam(required = false) minBathrooms: Int?,
         @RequestParam(required = false) minArea: BigDecimal?,
         @RequestParam(required = false) maxArea: BigDecimal?,
         @RequestParam(defaultValue = "0") page: Int,
@@ -36,12 +38,14 @@ class PropertyController(
     ): ResponseEntity<PropertyListDTO> {
         val filter = SearchFilterDTO(
             city = city,
+            postalCode = postalCode,
             operationType = operationType,
             propertyType = propertyType,
             minPrice = minPrice,
             maxPrice = maxPrice,
             minRooms = minRooms,
             maxRooms = maxRooms,
+            minBathrooms = minBathrooms,
             minArea = minArea,
             maxArea = maxArea,
             page = page,

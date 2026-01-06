@@ -15,12 +15,24 @@ class PisosComScraper(
     override val source = PropertySource.PISOSCOM
     override val baseUrl = "https://www.pisos.com"
 
-    private val searchUrls = listOf(
-        "$baseUrl/venta/pisos-madrid/",
-        "$baseUrl/alquiler/pisos-madrid/",
-        "$baseUrl/venta/pisos-barcelona/",
-        "$baseUrl/alquiler/pisos-barcelona/"
+    // All Spanish province capitals
+    private val cities = listOf(
+        "madrid", "barcelona", "valencia", "sevilla", "zaragoza", "malaga", "murcia", "palma_de_mallorca",
+        "las_palmas_de_gran_canaria", "bilbao", "alicante", "cordoba", "valladolid", "vigo", "gijon",
+        "hospitalet_de_llobregat", "vitoria_gasteiz", "a_coruna", "granada", "elche", "oviedo", "santa_cruz_de_tenerife",
+        "badalona", "cartagena", "terrassa", "jerez_de_la_frontera", "sabadell", "mostoles", "alcala_de_henares",
+        "pamplona", "almeria", "san_sebastian", "santander", "burgos", "albacete", "castellon_de_la_plana",
+        "logrono", "badajoz", "salamanca", "huelva", "lleida", "tarragona", "leon", "cadiz", "jaen",
+        "ourense", "lugo", "girona", "caceres", "guadalajara", "toledo", "pontevedra", "palencia",
+        "ciudad_real", "zamora", "avila", "cuenca", "huesca", "segovia", "soria", "teruel", "ceuta", "melilla"
     )
+
+    private val searchUrls = cities.flatMap { city ->
+        listOf(
+            "$baseUrl/venta/pisos-$city/",
+            "$baseUrl/alquiler/pisos-$city/"
+        )
+    }
 
     override fun scrape(): List<Property> {
         val properties = mutableListOf<Property>()
@@ -90,6 +102,7 @@ class PisosComScraper(
 
         val address = item.selectFirst(".ad-preview__address, .ad-list-item__address")?.text()?.trim()
         val zone = item.selectFirst(".ad-preview__zone, .ad-list-item__zone")?.text()?.trim()
+        val postalCode = extractPostalCodeFromUrl(href) ?: extractPostalCodeFromAddress(address)
 
         val imageUrl = item.selectFirst("img.ad-preview__img, img.ad-list-item__img")?.attr("src")
             ?: item.selectFirst("img")?.attr("data-src")
@@ -109,6 +122,7 @@ class PisosComScraper(
             areaM2 = area,
             address = address,
             city = city,
+            postalCode = postalCode,
             zone = zone,
             imageUrls = imageUrls,
             url = if (href.startsWith("http")) href else "$baseUrl$href"
@@ -122,13 +136,28 @@ class PisosComScraper(
     }
 
     private fun extractCityFromUrl(url: String): String {
-        return when {
-            url.contains("madrid") -> "Madrid"
-            url.contains("barcelona") -> "Barcelona"
-            url.contains("valencia") -> "Valencia"
-            url.contains("sevilla") -> "Sevilla"
-            else -> "España"
-        }
+        val cityMappings = mapOf(
+            "madrid" to "Madrid", "barcelona" to "Barcelona", "valencia" to "Valencia", "sevilla" to "Sevilla",
+            "zaragoza" to "Zaragoza", "malaga" to "Málaga", "murcia" to "Murcia", "palma_de_mallorca" to "Palma de Mallorca",
+            "las_palmas" to "Las Palmas de Gran Canaria", "bilbao" to "Bilbao", "alicante" to "Alicante",
+            "cordoba" to "Córdoba", "valladolid" to "Valladolid", "vigo" to "Vigo", "gijon" to "Gijón",
+            "hospitalet" to "L'Hospitalet de Llobregat", "vitoria" to "Vitoria-Gasteiz", "a_coruna" to "A Coruña",
+            "coruña" to "A Coruña", "granada" to "Granada", "elche" to "Elche", "oviedo" to "Oviedo",
+            "santa_cruz" to "Santa Cruz de Tenerife", "badalona" to "Badalona", "cartagena" to "Cartagena",
+            "terrassa" to "Terrassa", "jerez" to "Jerez de la Frontera", "sabadell" to "Sabadell",
+            "mostoles" to "Móstoles", "alcala_de_henares" to "Alcalá de Henares", "pamplona" to "Pamplona",
+            "almeria" to "Almería", "san_sebastian" to "San Sebastián", "donostia" to "San Sebastián",
+            "santander" to "Santander", "burgos" to "Burgos", "albacete" to "Albacete",
+            "castellon" to "Castellón de la Plana", "logrono" to "Logroño", "badajoz" to "Badajoz",
+            "salamanca" to "Salamanca", "huelva" to "Huelva", "lleida" to "Lleida", "tarragona" to "Tarragona",
+            "leon" to "León", "cadiz" to "Cádiz", "jaen" to "Jaén", "ourense" to "Ourense", "lugo" to "Lugo",
+            "girona" to "Girona", "caceres" to "Cáceres", "guadalajara" to "Guadalajara", "toledo" to "Toledo",
+            "pontevedra" to "Pontevedra", "palencia" to "Palencia", "ciudad_real" to "Ciudad Real",
+            "zamora" to "Zamora", "avila" to "Ávila", "cuenca" to "Cuenca", "huesca" to "Huesca",
+            "segovia" to "Segovia", "soria" to "Soria", "teruel" to "Teruel", "ceuta" to "Ceuta", "melilla" to "Melilla"
+        )
+        val urlLower = url.lowercase()
+        return cityMappings.entries.firstOrNull { urlLower.contains(it.key) }?.value ?: "España"
     }
 
     private fun inferPropertyType(title: String?): PropertyType {
@@ -145,5 +174,19 @@ class PisosComScraper(
             lowerTitle.contains("estudio") -> PropertyType.ESTUDIO
             else -> PropertyType.PISO
         }
+    }
+
+    private fun extractPostalCodeFromUrl(url: String): String? {
+        // URLs like: /piso-sant_pere_santa_caterina_la_ribera08003-55851209181_104700/
+        // The postal code (5 digits) is embedded before the ID
+        val regex = Regex("(\\d{5})-[a-z0-9]+_\\d+")
+        return regex.find(url)?.groupValues?.get(1)
+    }
+
+    private fun extractPostalCodeFromAddress(address: String?): String? {
+        if (address == null) return null
+        // Look for 5-digit postal code in the address
+        val regex = Regex("\\b(\\d{5})\\b")
+        return regex.find(address)?.groupValues?.get(1)
     }
 }

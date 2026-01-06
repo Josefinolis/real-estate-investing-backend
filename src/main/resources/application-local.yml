@@ -1,0 +1,18 @@
+# Local development configuration
+# Configure these environment variables before running:
+#   DB_HOST, DB_USERNAME, DB_PASSWORD
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/realstate
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+# Scraper disabled for local development
+scraper:
+  enabled: false
+  rate-limit:
+    requests-per-minute: 10
+    cooldown-ms: 6000
+  schedule:
+    cron: "0 */30 * * * *"
