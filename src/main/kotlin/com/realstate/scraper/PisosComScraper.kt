@@ -34,10 +34,72 @@ class PisosComScraper(
         )
     }
 
+    // Mapping from display name to URL slug
+    private val cityToSlug = mapOf(
+        "Madrid" to "madrid", "Barcelona" to "barcelona", "Valencia" to "valencia", "Sevilla" to "sevilla",
+        "Zaragoza" to "zaragoza", "Málaga" to "malaga", "Murcia" to "murcia",
+        "Palma de Mallorca" to "palma_de_mallorca", "Las Palmas de Gran Canaria" to "las_palmas_de_gran_canaria",
+        "Bilbao" to "bilbao", "Alicante" to "alicante", "Córdoba" to "cordoba", "Valladolid" to "valladolid",
+        "Vigo" to "vigo", "Gijón" to "gijon", "L'Hospitalet de Llobregat" to "hospitalet_de_llobregat",
+        "Vitoria-Gasteiz" to "vitoria_gasteiz", "A Coruña" to "a_coruna", "Granada" to "granada",
+        "Elche" to "elche", "Oviedo" to "oviedo", "Santa Cruz de Tenerife" to "santa_cruz_de_tenerife",
+        "Badalona" to "badalona", "Cartagena" to "cartagena", "Terrassa" to "terrassa",
+        "Jerez de la Frontera" to "jerez_de_la_frontera", "Sabadell" to "sabadell", "Móstoles" to "mostoles",
+        "Alcalá de Henares" to "alcala_de_henares", "Pamplona" to "pamplona", "Almería" to "almeria",
+        "San Sebastián" to "san_sebastian", "Santander" to "santander", "Burgos" to "burgos",
+        "Albacete" to "albacete", "Castellón de la Plana" to "castellon_de_la_plana", "Logroño" to "logrono",
+        "Badajoz" to "badajoz", "Salamanca" to "salamanca", "Huelva" to "huelva", "Lleida" to "lleida",
+        "Tarragona" to "tarragona", "León" to "leon", "Cádiz" to "cadiz", "Jaén" to "jaen",
+        "Ourense" to "ourense", "Lugo" to "lugo", "Girona" to "girona", "Cáceres" to "caceres",
+        "Guadalajara" to "guadalajara", "Toledo" to "toledo", "Pontevedra" to "pontevedra",
+        "Palencia" to "palencia", "Ciudad Real" to "ciudad_real", "Zamora" to "zamora", "Ávila" to "avila",
+        "Cuenca" to "cuenca", "Huesca" to "huesca", "Segovia" to "segovia", "Soria" to "soria",
+        "Teruel" to "teruel", "Ceuta" to "ceuta", "Melilla" to "melilla"
+    )
+
     override fun scrape(): List<Property> {
         val properties = mutableListOf<Property>()
 
         for (searchUrl in searchUrls) {
+            try {
+                logger.info("Scraping Pisos.com: $searchUrl")
+                val pageProperties = scrapeSearchPage(searchUrl)
+                properties.addAll(pageProperties)
+                logger.info("Found ${pageProperties.size} properties from $searchUrl")
+            } catch (e: Exception) {
+                logger.error("Error scraping $searchUrl: ${e.message}", e)
+            }
+        }
+
+        return properties
+    }
+
+    override fun scrapeWithConfig(cities: List<String>, operationTypes: List<String>): List<Property> {
+        val properties = mutableListOf<Property>()
+
+        // Build URLs dynamically based on cities and operation types
+        val dynamicUrls = cities.flatMap { city ->
+            val slug = cityToSlug[city]
+            if (slug == null) {
+                logger.warn("Unknown city for Pisos.com: $city")
+                emptyList()
+            } else {
+                operationTypes.mapNotNull { opType ->
+                    when (opType.uppercase()) {
+                        "VENTA" -> "$baseUrl/venta/pisos-$slug/"
+                        "ALQUILER" -> "$baseUrl/alquiler/pisos-$slug/"
+                        else -> {
+                            logger.warn("Unknown operation type: $opType")
+                            null
+                        }
+                    }
+                }
+            }
+        }
+
+        logger.info("Pisos.com: scraping ${dynamicUrls.size} URLs for ${cities.size} cities and ${operationTypes.size} operation types")
+
+        for (searchUrl in dynamicUrls) {
             try {
                 logger.info("Scraping Pisos.com: $searchUrl")
                 val pageProperties = scrapeSearchPage(searchUrl)

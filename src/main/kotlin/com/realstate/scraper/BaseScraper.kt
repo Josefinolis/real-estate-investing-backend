@@ -33,6 +33,13 @@ abstract class BaseScraper(
 
     abstract fun scrape(): List<Property>
 
+    /**
+     * Scrape properties with dynamic configuration.
+     * @param cities List of city names to search
+     * @param operationTypes List of operation types (VENTA, ALQUILER)
+     */
+    abstract fun scrapeWithConfig(cities: List<String>, operationTypes: List<String>): List<Property>
+
     protected fun fetchDocument(url: String): Document? {
         rateLimiter.acquire()
 

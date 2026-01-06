@@ -40,10 +40,75 @@ class IdealistaScraper(
         )
     }
 
+    // Mapping from display name to URL slug
+    private val cityToSlug = mapOf(
+        "Madrid" to "madrid-madrid", "Barcelona" to "barcelona-barcelona", "Valencia" to "valencia-valencia",
+        "Sevilla" to "sevilla-sevilla", "Zaragoza" to "zaragoza-zaragoza", "Málaga" to "malaga-malaga",
+        "Murcia" to "murcia-murcia", "Palma de Mallorca" to "palma-de-mallorca-balears-illes",
+        "Las Palmas de Gran Canaria" to "las-palmas-de-gran-canaria-las-palmas", "Bilbao" to "bilbao-vizcaya",
+        "Alicante" to "alicante-alacant-alicante", "Córdoba" to "cordoba-cordoba",
+        "Valladolid" to "valladolid-valladolid", "Vigo" to "vigo-pontevedra", "Gijón" to "gijon-asturias",
+        "Vitoria-Gasteiz" to "vitoria-gasteiz-alava", "A Coruña" to "a-coruna-a-coruna",
+        "Granada" to "granada-granada", "Elche" to "elche-elx-alicante", "Oviedo" to "oviedo-asturias",
+        "Santa Cruz de Tenerife" to "santa-cruz-de-tenerife-santa-cruz-de-tenerife",
+        "Pamplona" to "pamplona-iruna-navarra", "Almería" to "almeria-almeria",
+        "San Sebastián" to "donostia-san-sebastian-guipuzcoa", "Santander" to "santander-cantabria",
+        "Burgos" to "burgos-burgos", "Albacete" to "albacete-albacete",
+        "Castellón de la Plana" to "castellon-de-la-plana-castello-de-la-plana-castellon",
+        "Logroño" to "logrono-la-rioja", "Badajoz" to "badajoz-badajoz", "Salamanca" to "salamanca-salamanca",
+        "Huelva" to "huelva-huelva", "Lleida" to "lleida-lleida", "Tarragona" to "tarragona-tarragona",
+        "León" to "leon-leon", "Cádiz" to "cadiz-cadiz", "Jaén" to "jaen-jaen", "Ourense" to "ourense-ourense",
+        "Lugo" to "lugo-lugo", "Girona" to "girona-girona", "Cáceres" to "caceres-caceres",
+        "Guadalajara" to "guadalajara-guadalajara", "Toledo" to "toledo-toledo",
+        "Pontevedra" to "pontevedra-pontevedra", "Palencia" to "palencia-palencia",
+        "Ciudad Real" to "ciudad-real-ciudad-real", "Zamora" to "zamora-zamora", "Ávila" to "avila-avila",
+        "Cuenca" to "cuenca-cuenca", "Huesca" to "huesca-huesca", "Segovia" to "segovia-segovia",
+        "Soria" to "soria-soria", "Teruel" to "teruel-teruel", "Ceuta" to "ceuta-ceuta", "Melilla" to "melilla-melilla"
+    )
+
     override fun scrape(): List<Property> {
         val properties = mutableListOf<Property>()
 
         for (searchUrl in searchUrls) {
+            try {
+                logger.info("Scraping Idealista: $searchUrl")
+                val pageProperties = scrapeSearchPage(searchUrl)
+                properties.addAll(pageProperties)
+                logger.info("Found ${pageProperties.size} properties from $searchUrl")
+            } catch (e: Exception) {
+                logger.error("Error scraping $searchUrl: ${e.message}", e)
+            }
+        }
+
+        return properties
+    }
+
+    override fun scrapeWithConfig(cities: List<String>, operationTypes: List<String>): List<Property> {
+        val properties = mutableListOf<Property>()
+
+        // Build URLs dynamically based on cities and operation types
+        val dynamicUrls = cities.flatMap { city ->
+            val slug = cityToSlug[city]
+            if (slug == null) {
+                logger.warn("Unknown city for Idealista: $city")
+                emptyList()
+            } else {
+                operationTypes.mapNotNull { opType ->
+                    when (opType.uppercase()) {
+                        "VENTA" -> "$baseUrl/venta-viviendas/$slug/"
+                        "ALQUILER" -> "$baseUrl/alquiler-viviendas/$slug/"
+                        else -> {
+                            logger.warn("Unknown operation type: $opType")
+                            null
+                        }
+                    }
+                }
+            }
+        }
+
+        logger.info("Idealista: scraping ${dynamicUrls.size} URLs for ${cities.size} cities and ${operationTypes.size} operation types")
+
+        for (searchUrl in dynamicUrls) {
             try {
                 logger.info("Scraping Idealista: $searchUrl")
                 val pageProperties = scrapeSearchPage(searchUrl)

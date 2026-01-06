@@ -159,4 +159,8 @@ class PropertyService(
             maxArea = alert.maxArea
         )
     }
+
+    fun findByExternalIdAndSource(externalId: String, source: PropertySource): Property? {
+        return propertyRepository.findByExternalIdAndSource(externalId, source)
+    }
 }
