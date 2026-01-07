@@ -26,6 +26,7 @@ interface PropertyRepository : JpaRepository<Property, UUID>, JpaSpecificationEx
         SELECT p FROM Property p
         WHERE p.isActive = true
         AND (:city IS NULL OR p.city = :city)
+        AND (:province IS NULL OR p.province = :province)
         AND (:postalCode IS NULL OR p.postalCode = :postalCode)
         AND (:operationType IS NULL OR p.operationType = :operationType)
         AND (:propertyType IS NULL OR p.propertyType = :propertyType)
@@ -40,6 +41,7 @@ interface PropertyRepository : JpaRepository<Property, UUID>, JpaSpecificationEx
     """)
     fun searchProperties(
         @Param("city") city: String?,
+        @Param("province") province: String?,
         @Param("postalCode") postalCode: String?,
         @Param("operationType") operationType: OperationType?,
         @Param("propertyType") propertyType: PropertyType?,

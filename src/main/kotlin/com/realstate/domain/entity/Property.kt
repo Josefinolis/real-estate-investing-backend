@@ -55,6 +55,9 @@ data class Property(
     @Column(length = 100)
     var city: String? = null,
 
+    @Column(length = 100)
+    var province: String? = null,
+
     @Column(name = "postal_code", length = 10)
     var postalCode: String? = null,
 

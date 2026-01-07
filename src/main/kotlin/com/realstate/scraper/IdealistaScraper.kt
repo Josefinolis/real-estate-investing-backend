@@ -15,56 +15,199 @@ class IdealistaScraper(
     override val source = PropertySource.IDEALISTA
     override val baseUrl = "https://www.idealista.com"
 
-    // All Spanish province capitals - Format: city-province for Idealista
-    private val cityPairs = listOf(
-        "madrid-madrid", "barcelona-barcelona", "valencia-valencia", "sevilla-sevilla",
-        "zaragoza-zaragoza", "malaga-malaga", "murcia-murcia", "palma-de-mallorca-balears-illes",
-        "las-palmas-de-gran-canaria-las-palmas", "bilbao-vizcaya", "alicante-alacant-alicante",
-        "cordoba-cordoba", "valladolid-valladolid", "vigo-pontevedra", "gijon-asturias",
-        "vitoria-gasteiz-alava", "a-coruna-a-coruna", "granada-granada", "elche-elx-alicante",
-        "oviedo-asturias", "santa-cruz-de-tenerife-santa-cruz-de-tenerife",
-        "pamplona-iruna-navarra", "almeria-almeria", "donostia-san-sebastian-guipuzcoa",
-        "santander-cantabria", "burgos-burgos", "albacete-albacete", "castellon-de-la-plana-castello-de-la-plana-castellon",
-        "logrono-la-rioja", "badajoz-badajoz", "salamanca-salamanca", "huelva-huelva",
-        "lleida-lleida", "tarragona-tarragona", "leon-leon", "cadiz-cadiz", "jaen-jaen",
-        "ourense-ourense", "lugo-lugo", "girona-girona", "caceres-caceres", "guadalajara-guadalajara",
-        "toledo-toledo", "pontevedra-pontevedra", "palencia-palencia", "ciudad-real-ciudad-real",
-        "zamora-zamora", "avila-avila", "cuenca-cuenca", "huesca-huesca", "segovia-segovia",
-        "soria-soria", "teruel-teruel", "ceuta-ceuta", "melilla-melilla"
+    // Data class for location info (city/municipality -> slug, province)
+    data class LocationInfo(val slug: String, val province: String)
+
+    // Mapping from display name to URL slug and province
+    // Includes both province capitals and municipalities
+    private val locationToInfo = mapOf(
+        // Province capitals (city name = province name in most cases)
+        "Madrid" to LocationInfo("madrid-madrid", "Madrid"),
+        "Barcelona" to LocationInfo("barcelona-barcelona", "Barcelona"),
+        "Valencia" to LocationInfo("valencia-valencia", "Valencia"),
+        "Sevilla" to LocationInfo("sevilla-sevilla", "Sevilla"),
+        "Zaragoza" to LocationInfo("zaragoza-zaragoza", "Zaragoza"),
+        "Málaga" to LocationInfo("malaga-malaga", "Málaga"),
+        "Murcia" to LocationInfo("murcia-murcia", "Murcia"),
+        "Palma de Mallorca" to LocationInfo("palma-de-mallorca-balears-illes", "Illes Balears"),
+        "Las Palmas de Gran Canaria" to LocationInfo("las-palmas-de-gran-canaria-las-palmas", "Las Palmas"),
+        "Bilbao" to LocationInfo("bilbao-vizcaya", "Vizcaya"),
+        "Alicante" to LocationInfo("alicante-alacant-alicante", "Alicante"),
+        "Córdoba" to LocationInfo("cordoba-cordoba", "Córdoba"),
+        "Valladolid" to LocationInfo("valladolid-valladolid", "Valladolid"),
+        "Vigo" to LocationInfo("vigo-pontevedra", "Pontevedra"),
+        "Gijón" to LocationInfo("gijon-asturias", "Asturias"),
+        "Vitoria-Gasteiz" to LocationInfo("vitoria-gasteiz-alava", "Álava"),
+        "A Coruña" to LocationInfo("a-coruna-a-coruna", "A Coruña"),
+        "Granada" to LocationInfo("granada-granada", "Granada"),
+        "Elche" to LocationInfo("elche-elx-alicante", "Alicante"),
+        "Oviedo" to LocationInfo("oviedo-asturias", "Asturias"),
+        "Santa Cruz de Tenerife" to LocationInfo("santa-cruz-de-tenerife-santa-cruz-de-tenerife", "Santa Cruz de Tenerife"),
+        "Pamplona" to LocationInfo("pamplona-iruna-navarra", "Navarra"),
+        "Almería" to LocationInfo("almeria-almeria", "Almería"),
+        "San Sebastián" to LocationInfo("donostia-san-sebastian-guipuzcoa", "Guipúzcoa"),
+        "Santander" to LocationInfo("santander-cantabria", "Cantabria"),
+        "Burgos" to LocationInfo("burgos-burgos", "Burgos"),
+        "Albacete" to LocationInfo("albacete-albacete", "Albacete"),
+        "Castellón de la Plana" to LocationInfo("castellon-de-la-plana-castello-de-la-plana-castellon", "Castellón"),
+        "Logroño" to LocationInfo("logrono-la-rioja", "La Rioja"),
+        "Badajoz" to LocationInfo("badajoz-badajoz", "Badajoz"),
+        "Salamanca" to LocationInfo("salamanca-salamanca", "Salamanca"),
+        "Huelva" to LocationInfo("huelva-huelva", "Huelva"),
+        "Lleida" to LocationInfo("lleida-lleida", "Lleida"),
+        "Tarragona" to LocationInfo("tarragona-tarragona", "Tarragona"),
+        "León" to LocationInfo("leon-leon", "León"),
+        "Cádiz" to LocationInfo("cadiz-cadiz", "Cádiz"),
+        "Jaén" to LocationInfo("jaen-jaen", "Jaén"),
+        "Ourense" to LocationInfo("ourense-ourense", "Ourense"),
+        "Lugo" to LocationInfo("lugo-lugo", "Lugo"),
+        "Girona" to LocationInfo("girona-girona", "Girona"),
+        "Cáceres" to LocationInfo("caceres-caceres", "Cáceres"),
+        "Guadalajara" to LocationInfo("guadalajara-guadalajara", "Guadalajara"),
+        "Toledo" to LocationInfo("toledo-toledo", "Toledo"),
+        "Pontevedra" to LocationInfo("pontevedra-pontevedra", "Pontevedra"),
+        "Palencia" to LocationInfo("palencia-palencia", "Palencia"),
+        "Ciudad Real" to LocationInfo("ciudad-real-ciudad-real", "Ciudad Real"),
+        "Zamora" to LocationInfo("zamora-zamora", "Zamora"),
+        "Ávila" to LocationInfo("avila-avila", "Ávila"),
+        "Cuenca" to LocationInfo("cuenca-cuenca", "Cuenca"),
+        "Huesca" to LocationInfo("huesca-huesca", "Huesca"),
+        "Segovia" to LocationInfo("segovia-segovia", "Segovia"),
+        "Soria" to LocationInfo("soria-soria", "Soria"),
+        "Teruel" to LocationInfo("teruel-teruel", "Teruel"),
+        "Ceuta" to LocationInfo("ceuta-ceuta", "Ceuta"),
+        "Melilla" to LocationInfo("melilla-melilla", "Melilla"),
+
+        // Municipalities of Toledo province
+        "Ocaña" to LocationInfo("ocana-toledo", "Toledo"),
+        "Talavera de la Reina" to LocationInfo("talavera-de-la-reina-toledo", "Toledo"),
+        "Illescas" to LocationInfo("illescas-toledo", "Toledo"),
+        "Seseña" to LocationInfo("sesena-toledo", "Toledo"),
+        "Torrijos" to LocationInfo("torrijos-toledo", "Toledo"),
+        "Mora" to LocationInfo("mora-toledo", "Toledo"),
+        "Consuegra" to LocationInfo("consuegra-toledo", "Toledo"),
+        "Madridejos" to LocationInfo("madridejos-toledo", "Toledo"),
+        "Quintanar de la Orden" to LocationInfo("quintanar-de-la-orden-toledo", "Toledo"),
+        "Villacañas" to LocationInfo("villacanas-toledo", "Toledo"),
+        "Sonseca" to LocationInfo("sonseca-toledo", "Toledo"),
+
+        // Municipalities of Madrid province (outside Madrid city)
+        "Alcalá de Henares" to LocationInfo("alcala-de-henares-madrid", "Madrid"),
+        "Móstoles" to LocationInfo("mostoles-madrid", "Madrid"),
+        "Getafe" to LocationInfo("getafe-madrid", "Madrid"),
+        "Alcorcón" to LocationInfo("alcorcon-madrid", "Madrid"),
+        "Leganés" to LocationInfo("leganes-madrid", "Madrid"),
+        "Fuenlabrada" to LocationInfo("fuenlabrada-madrid", "Madrid"),
+        "Parla" to LocationInfo("parla-madrid", "Madrid"),
+        "Torrejón de Ardoz" to LocationInfo("torrejon-de-ardoz-madrid", "Madrid"),
+        "Alcobendas" to LocationInfo("alcobendas-madrid", "Madrid"),
+        "Las Rozas de Madrid" to LocationInfo("las-rozas-de-madrid-madrid", "Madrid"),
+        "San Sebastián de los Reyes" to LocationInfo("san-sebastian-de-los-reyes-madrid", "Madrid"),
+        "Pozuelo de Alarcón" to LocationInfo("pozuelo-de-alarcon-madrid", "Madrid"),
+        "Coslada" to LocationInfo("coslada-madrid", "Madrid"),
+        "Rivas-Vaciamadrid" to LocationInfo("rivas-vaciamadrid-madrid", "Madrid"),
+        "Majadahonda" to LocationInfo("majadahonda-madrid", "Madrid"),
+        "Aranjuez" to LocationInfo("aranjuez-madrid", "Madrid"),
+        "Arganda del Rey" to LocationInfo("arganda-del-rey-madrid", "Madrid"),
+        "Collado Villalba" to LocationInfo("collado-villalba-madrid", "Madrid"),
+        "Tres Cantos" to LocationInfo("tres-cantos-madrid", "Madrid"),
+        "San Fernando de Henares" to LocationInfo("san-fernando-de-henares-madrid", "Madrid"),
+        "Boadilla del Monte" to LocationInfo("boadilla-del-monte-madrid", "Madrid"),
+        "Pinto" to LocationInfo("pinto-madrid", "Madrid"),
+        "Valdemoro" to LocationInfo("valdemoro-madrid", "Madrid"),
+        "Colmenar Viejo" to LocationInfo("colmenar-viejo-madrid", "Madrid"),
+        "Galapagar" to LocationInfo("galapagar-madrid", "Madrid"),
+        "Villanueva de la Cañada" to LocationInfo("villanueva-de-la-canada-madrid", "Madrid"),
+
+        // Other important municipalities
+        "Marbella" to LocationInfo("marbella-malaga", "Málaga"),
+        "Fuengirola" to LocationInfo("fuengirola-malaga", "Málaga"),
+        "Torremolinos" to LocationInfo("torremolinos-malaga", "Málaga"),
+        "Benalmádena" to LocationInfo("benalmadena-malaga", "Málaga"),
+        "Estepona" to LocationInfo("estepona-malaga", "Málaga"),
+        "Mijas" to LocationInfo("mijas-malaga", "Málaga"),
+        "Ronda" to LocationInfo("ronda-malaga", "Málaga"),
+        "Vélez-Málaga" to LocationInfo("velez-malaga-malaga", "Málaga"),
+        "Torrevieja" to LocationInfo("torrevieja-alicante", "Alicante"),
+        "Benidorm" to LocationInfo("benidorm-alicante", "Alicante"),
+        "Orihuela" to LocationInfo("orihuela-alicante", "Alicante"),
+        "Dénia" to LocationInfo("denia-alicante", "Alicante"),
+        "Calpe" to LocationInfo("calpe-alicante", "Alicante"),
+        "Jávea" to LocationInfo("javea-xabia-alicante", "Alicante"),
+        "Villajoyosa" to LocationInfo("villajoyosa-la-vila-joiosa-alicante", "Alicante"),
+        "Altea" to LocationInfo("altea-alicante", "Alicante"),
+        "Santa Pola" to LocationInfo("santa-pola-alicante", "Alicante"),
+        "Gandía" to LocationInfo("gandia-valencia", "Valencia"),
+        "Sagunto" to LocationInfo("sagunto-sagunt-valencia", "Valencia"),
+        "Paterna" to LocationInfo("paterna-valencia", "Valencia"),
+        "Torrent" to LocationInfo("torrent-valencia", "Valencia"),
+        "Alcoy" to LocationInfo("alcoy-alcoi-alicante", "Alicante"),
+        "Cartagena" to LocationInfo("cartagena-murcia", "Murcia"),
+        "Lorca" to LocationInfo("lorca-murcia", "Murcia"),
+        "Molina de Segura" to LocationInfo("molina-de-segura-murcia", "Murcia"),
+        "Jerez de la Frontera" to LocationInfo("jerez-de-la-frontera-cadiz", "Cádiz"),
+        "Algeciras" to LocationInfo("algeciras-cadiz", "Cádiz"),
+        "San Fernando" to LocationInfo("san-fernando-cadiz", "Cádiz"),
+        "El Puerto de Santa María" to LocationInfo("el-puerto-de-santa-maria-cadiz", "Cádiz"),
+        "Chiclana de la Frontera" to LocationInfo("chiclana-de-la-frontera-cadiz", "Cádiz"),
+        "Dos Hermanas" to LocationInfo("dos-hermanas-sevilla", "Sevilla"),
+        "Alcalá de Guadaíra" to LocationInfo("alcala-de-guadaira-sevilla", "Sevilla"),
+        "Utrera" to LocationInfo("utrera-sevilla", "Sevilla"),
+        "Mairena del Aljarafe" to LocationInfo("mairena-del-aljarafe-sevilla", "Sevilla"),
+        "Hospitalet de Llobregat" to LocationInfo("hospitalet-de-llobregat-l-barcelona", "Barcelona"),
+        "Badalona" to LocationInfo("badalona-barcelona", "Barcelona"),
+        "Terrassa" to LocationInfo("terrassa-barcelona", "Barcelona"),
+        "Sabadell" to LocationInfo("sabadell-barcelona", "Barcelona"),
+        "Mataró" to LocationInfo("mataro-barcelona", "Barcelona"),
+        "Sitges" to LocationInfo("sitges-barcelona", "Barcelona"),
+        "Castelldefels" to LocationInfo("castelldefels-barcelona", "Barcelona"),
+        "Sant Cugat del Vallès" to LocationInfo("sant-cugat-del-valles-barcelona", "Barcelona"),
+        "Vic" to LocationInfo("vic-barcelona", "Barcelona"),
+        "Manresa" to LocationInfo("manresa-barcelona", "Barcelona"),
+        "Rubí" to LocationInfo("rubi-barcelona", "Barcelona"),
+        "Viladecans" to LocationInfo("viladecans-barcelona", "Barcelona"),
+        "El Prat de Llobregat" to LocationInfo("el-prat-de-llobregat-barcelona", "Barcelona"),
+        "Granollers" to LocationInfo("granollers-barcelona", "Barcelona"),
+        "Cerdanyola del Vallès" to LocationInfo("cerdanyola-del-valles-barcelona", "Barcelona"),
+        "Santiago de Compostela" to LocationInfo("santiago-de-compostela-a-coruna", "A Coruña"),
+        "Ferrol" to LocationInfo("ferrol-a-coruna", "A Coruña"),
+        "Ponferrada" to LocationInfo("ponferrada-leon", "León"),
+        "San Vicente del Raspeig" to LocationInfo("sant-vicent-del-raspeig-san-vicente-del-raspeig-alicante", "Alicante"),
+        "Reus" to LocationInfo("reus-tarragona", "Tarragona"),
+        "Salou" to LocationInfo("salou-tarragona", "Tarragona"),
+        "Cambrils" to LocationInfo("cambrils-tarragona", "Tarragona"),
+        "Lloret de Mar" to LocationInfo("lloret-de-mar-girona", "Girona"),
+        "Blanes" to LocationInfo("blanes-girona", "Girona"),
+        "Figueres" to LocationInfo("figueres-girona", "Girona"),
+        "Roses" to LocationInfo("roses-girona", "Girona"),
+        "Avilés" to LocationInfo("aviles-asturias", "Asturias"),
+        "Mieres" to LocationInfo("mieres-asturias", "Asturias"),
+        "Barakaldo" to LocationInfo("barakaldo-vizcaya", "Vizcaya"),
+        "Getxo" to LocationInfo("getxo-vizcaya", "Vizcaya"),
+        "Portugalete" to LocationInfo("portugalete-vizcaya", "Vizcaya"),
+        "Irún" to LocationInfo("irun-guipuzcoa", "Guipúzcoa"),
+        "Eibar" to LocationInfo("eibar-guipuzcoa", "Guipúzcoa"),
+        "Zarautz" to LocationInfo("zarautz-guipuzcoa", "Guipúzcoa"),
+        "Torrelavega" to LocationInfo("torrelavega-cantabria", "Cantabria"),
+        "Castro Urdiales" to LocationInfo("castro-urdiales-cantabria", "Cantabria"),
+        "Laredo" to LocationInfo("laredo-cantabria", "Cantabria"),
+        "San Cristóbal de La Laguna" to LocationInfo("san-cristobal-de-la-laguna-santa-cruz-de-tenerife", "Santa Cruz de Tenerife"),
+        "Arona" to LocationInfo("arona-santa-cruz-de-tenerife", "Santa Cruz de Tenerife"),
+        "Adeje" to LocationInfo("adeje-santa-cruz-de-tenerife", "Santa Cruz de Tenerife"),
+        "Arrecife" to LocationInfo("arrecife-las-palmas", "Las Palmas"),
+        "Telde" to LocationInfo("telde-las-palmas", "Las Palmas"),
+        "San Bartolomé de Tirajana" to LocationInfo("san-bartolome-de-tirajana-las-palmas", "Las Palmas")
     )
 
-    private val searchUrls = cityPairs.flatMap { cityPair ->
+    // For backwards compatibility, create a simple cityToSlug map
+    private val cityToSlug: Map<String, String> = locationToInfo.mapValues { it.value.slug }
+
+    private val searchUrls = locationToInfo.values.map { it.slug }.distinct().flatMap { slug ->
         listOf(
-            "$baseUrl/venta-viviendas/$cityPair/",
-            "$baseUrl/alquiler-viviendas/$cityPair/"
+            "$baseUrl/venta-viviendas/$slug/",
+            "$baseUrl/alquiler-viviendas/$slug/"
         )
     }
-
-    // Mapping from display name to URL slug
-    private val cityToSlug = mapOf(
-        "Madrid" to "madrid-madrid", "Barcelona" to "barcelona-barcelona", "Valencia" to "valencia-valencia",
-        "Sevilla" to "sevilla-sevilla", "Zaragoza" to "zaragoza-zaragoza", "Málaga" to "malaga-malaga",
-        "Murcia" to "murcia-murcia", "Palma de Mallorca" to "palma-de-mallorca-balears-illes",
-        "Las Palmas de Gran Canaria" to "las-palmas-de-gran-canaria-las-palmas", "Bilbao" to "bilbao-vizcaya",
-        "Alicante" to "alicante-alacant-alicante", "Córdoba" to "cordoba-cordoba",
-        "Valladolid" to "valladolid-valladolid", "Vigo" to "vigo-pontevedra", "Gijón" to "gijon-asturias",
-        "Vitoria-Gasteiz" to "vitoria-gasteiz-alava", "A Coruña" to "a-coruna-a-coruna",
-        "Granada" to "granada-granada", "Elche" to "elche-elx-alicante", "Oviedo" to "oviedo-asturias",
-        "Santa Cruz de Tenerife" to "santa-cruz-de-tenerife-santa-cruz-de-tenerife",
-        "Pamplona" to "pamplona-iruna-navarra", "Almería" to "almeria-almeria",
-        "San Sebastián" to "donostia-san-sebastian-guipuzcoa", "Santander" to "santander-cantabria",
-        "Burgos" to "burgos-burgos", "Albacete" to "albacete-albacete",
-        "Castellón de la Plana" to "castellon-de-la-plana-castello-de-la-plana-castellon",
-        "Logroño" to "logrono-la-rioja", "Badajoz" to "badajoz-badajoz", "Salamanca" to "salamanca-salamanca",
-        "Huelva" to "huelva-huelva", "Lleida" to "lleida-lleida", "Tarragona" to "tarragona-tarragona",
-        "León" to "leon-leon", "Cádiz" to "cadiz-cadiz", "Jaén" to "jaen-jaen", "Ourense" to "ourense-ourense",
-        "Lugo" to "lugo-lugo", "Girona" to "girona-girona", "Cáceres" to "caceres-caceres",
-        "Guadalajara" to "guadalajara-guadalajara", "Toledo" to "toledo-toledo",
-        "Pontevedra" to "pontevedra-pontevedra", "Palencia" to "palencia-palencia",
-        "Ciudad Real" to "ciudad-real-ciudad-real", "Zamora" to "zamora-zamora", "Ávila" to "avila-avila",
-        "Cuenca" to "cuenca-cuenca", "Huesca" to "huesca-huesca", "Segovia" to "segovia-segovia",
-        "Soria" to "soria-soria", "Teruel" to "teruel-teruel", "Ceuta" to "ceuta-ceuta", "Melilla" to "melilla-melilla"
-    )
 
     override fun scrape(): List<Property> {
         val properties = mutableListOf<Property>()
@@ -127,13 +270,13 @@ class IdealistaScraper(
         val properties = mutableListOf<Property>()
 
         val operationType = if (url.contains("alquiler")) OperationType.ALQUILER else OperationType.VENTA
-        val city = extractCityFromUrl(url)
+        val locationData = extractLocationFromUrl(url)
 
         val items = document.select("article.item")
 
         for (item in items) {
             try {
-                val property = parsePropertyItem(item, operationType, city)
+                val property = parsePropertyItem(item, operationType, locationData.first, locationData.second)
                 if (property != null) {
                     properties.add(property)
                 }
@@ -145,7 +288,7 @@ class IdealistaScraper(
         return properties
     }
 
-    private fun parsePropertyItem(item: Element, operationType: OperationType, city: String): Property? {
+    private fun parsePropertyItem(item: Element, operationType: OperationType, city: String, province: String?): Property? {
         val linkElement = item.selectFirst("a.item-link") ?: return null
         val href = linkElement.attr("href")
         val externalId = extractIdFromUrl(href) ?: return null
@@ -189,6 +332,7 @@ class IdealistaScraper(
             areaM2 = area,
             address = address,
             city = city,
+            province = province,
             postalCode = postalCode,
             zone = zone,
             imageUrls = imageUrls,
@@ -201,26 +345,51 @@ class IdealistaScraper(
         return regex.find(url)?.groupValues?.get(1)
     }
 
-    private fun extractCityFromUrl(url: String): String {
-        val cityMappings = mapOf(
-            "madrid" to "Madrid", "barcelona" to "Barcelona", "valencia" to "Valencia", "sevilla" to "Sevilla",
-            "zaragoza" to "Zaragoza", "malaga" to "Málaga", "murcia" to "Murcia", "palma-de-mallorca" to "Palma de Mallorca",
-            "las-palmas" to "Las Palmas de Gran Canaria", "bilbao" to "Bilbao", "alicante" to "Alicante",
-            "cordoba" to "Córdoba", "valladolid" to "Valladolid", "vigo" to "Vigo", "gijon" to "Gijón",
-            "vitoria" to "Vitoria-Gasteiz", "a-coruna" to "A Coruña", "granada" to "Granada", "elche" to "Elche",
-            "oviedo" to "Oviedo", "santa-cruz-de-tenerife" to "Santa Cruz de Tenerife",
-            "pamplona" to "Pamplona", "almeria" to "Almería", "donostia" to "San Sebastián", "san-sebastian" to "San Sebastián",
-            "santander" to "Santander", "burgos" to "Burgos", "albacete" to "Albacete",
-            "castellon" to "Castellón de la Plana", "logrono" to "Logroño", "badajoz" to "Badajoz",
-            "salamanca" to "Salamanca", "huelva" to "Huelva", "lleida" to "Lleida", "tarragona" to "Tarragona",
-            "leon" to "León", "cadiz" to "Cádiz", "jaen" to "Jaén", "ourense" to "Ourense", "lugo" to "Lugo",
-            "girona" to "Girona", "caceres" to "Cáceres", "guadalajara" to "Guadalajara", "toledo" to "Toledo",
-            "pontevedra" to "Pontevedra", "palencia" to "Palencia", "ciudad-real" to "Ciudad Real",
-            "zamora" to "Zamora", "avila" to "Ávila", "cuenca" to "Cuenca", "huesca" to "Huesca",
-            "segovia" to "Segovia", "soria" to "Soria", "teruel" to "Teruel", "ceuta" to "Ceuta", "melilla" to "Melilla"
-        )
+    /**
+     * Extracts city/municipality name and province from URL
+     * @return Pair of (city/municipality name, province name)
+     */
+    private fun extractLocationFromUrl(url: String): Pair<String, String?> {
         val urlLower = url.lowercase()
-        return cityMappings.entries.firstOrNull { urlLower.contains(it.key) }?.value ?: "España"
+
+        // Try to find a matching location from our locationToInfo map
+        for ((locationName, info) in locationToInfo) {
+            if (urlLower.contains(info.slug)) {
+                return Pair(locationName, info.province)
+            }
+        }
+
+        // Fallback: try to extract province from URL pattern (e.g., "ocana-toledo" -> Toledo)
+        val provincePatterns = listOf(
+            "toledo", "madrid", "barcelona", "valencia", "sevilla", "malaga", "alicante",
+            "murcia", "cadiz", "cordoba", "granada", "jaen", "huelva", "almeria",
+            "zaragoza", "huesca", "teruel", "vizcaya", "guipuzcoa", "alava",
+            "cantabria", "asturias", "la-rioja", "navarra", "leon", "salamanca",
+            "zamora", "valladolid", "palencia", "burgos", "segovia", "avila", "soria",
+            "a-coruna", "lugo", "ourense", "pontevedra", "caceres", "badajoz",
+            "ciudad-real", "cuenca", "guadalajara", "albacete", "lleida", "girona",
+            "tarragona", "castellon", "balears-illes", "las-palmas", "santa-cruz-de-tenerife"
+        )
+
+        for (province in provincePatterns) {
+            if (urlLower.contains("-$province/")) {
+                // Extract city name from URL
+                val regex = Regex("/(?:venta|alquiler)-viviendas/([^-]+)-$province/")
+                val match = regex.find(urlLower)
+                if (match != null) {
+                    val citySlug = match.groupValues[1]
+                    val cityName = citySlug.replace("-", " ")
+                        .split(" ")
+                        .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                    val provinceName = province.replace("-", " ")
+                        .split(" ")
+                        .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                    return Pair(cityName, provinceName)
+                }
+            }
+        }
+
+        return Pair("España", null)
     }
 
     private fun inferPropertyType(title: String?): PropertyType {

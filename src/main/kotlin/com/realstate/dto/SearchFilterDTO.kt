@@ -6,6 +6,7 @@ import java.math.BigDecimal
 
 data class SearchFilterDTO(
     val city: String? = null,
+    val province: String? = null,
     val postalCode: String? = null,
     val zones: List<String>? = null,
     val operationType: OperationType? = null,

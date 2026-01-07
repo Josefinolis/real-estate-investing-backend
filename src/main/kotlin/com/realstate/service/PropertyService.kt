@@ -33,6 +33,7 @@ class PropertyService(
 
         val page = propertyRepository.searchProperties(
             city = filter.city,
+            province = filter.province,
             postalCode = filter.postalCode,
             operationType = filter.operationType,
             propertyType = filter.propertyType,
@@ -99,6 +100,10 @@ class PropertyService(
                 areaM2 = property.areaM2
                 address = property.address
                 city = property.city
+                // Update province if the new value is not null
+                if (property.province != null) {
+                    province = property.province
+                }
                 // Update postalCode if the new value is not null
                 if (property.postalCode != null) {
                     postalCode = property.postalCode

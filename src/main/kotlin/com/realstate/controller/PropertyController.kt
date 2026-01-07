@@ -23,6 +23,7 @@ class PropertyController(
     @GetMapping
     fun searchProperties(
         @RequestParam(required = false) city: String?,
+        @RequestParam(required = false) province: String?,
         @RequestParam(required = false) postalCode: String?,
         @RequestParam(required = false) operationType: OperationType?,
         @RequestParam(required = false) propertyType: PropertyType?,
@@ -38,6 +39,7 @@ class PropertyController(
     ): ResponseEntity<PropertyListDTO> {
         val filter = SearchFilterDTO(
             city = city,
+            province = province,
             postalCode = postalCode,
             operationType = operationType,
             propertyType = propertyType,
