@@ -1,11 +1,22 @@
 # Real State Investing - Backend
 
-API REST para rastrear inmuebles en portales españoles (Idealista, Fotocasa, Pisos.com).
+API REST para rastrear inmuebles en portales inmobiliarios españoles.
+
+## Fuentes de datos
+
+| Portal | Estado | Tecnología |
+|--------|--------|------------|
+| **Pisos.com** | Activo | HTTP + Jsoup |
+| **Fotocasa** | Activo | Playwright (headless browser) |
+| **Idealista** | Deshabilitado | Bloqueado por DataDome anti-bot |
+
+> **Nota sobre Idealista:** Utiliza protección anti-bot comercial (DataDome) que bloquea navegadores automatizados. Para usarlo se requiere API oficial o servicios de scraping profesional.
 
 ## Stack
 
 - **Kotlin** + **Spring Boot** 3.2
 - **PostgreSQL** 14+
+- **Playwright** (browser headless para sitios con JavaScript)
 - **Firebase Admin SDK** (push notifications)
 
 ## API Endpoints
@@ -37,6 +48,15 @@ DELETE /api/favorites/{propertyId}
 POST /api/auth/register           # Registrar usuario
 POST /api/auth/fcm-token          # Actualizar FCM token
 GET  /api/auth/me                 # Usuario actual
+```
+
+### Scraper
+```
+GET  /api/scraper/status          # Estado del scraper
+GET  /api/scraper/config          # Configuración actual
+PUT  /api/scraper/config          # Actualizar configuración
+POST /api/scraper/run             # Ejecutar scraping manual
+GET  /api/scraper/runs            # Historial de ejecuciones
 ```
 
 ## Desarrollo

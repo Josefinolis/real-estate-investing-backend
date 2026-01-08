@@ -56,9 +56,9 @@ data class ScraperConfig(
     @Column(name = "cron_expression", length = 50)
     var cronExpression: String = "0 */30 * * * *",
 
-    // Fuentes activas: IDEALISTA, PISOSCOM, FOTOCASA
+    // Fuentes activas: PISOSCOM, FOTOCASA (Idealista requiere API oficial por protección anti-bot)
     @Column(name = "sources", columnDefinition = "TEXT[]")
-    var sources: Array<String> = arrayOf("IDEALISTA", "PISOSCOM"),
+    var sources: Array<String> = arrayOf("PISOSCOM", "FOTOCASA"),
 
     @Column(name = "updated_at")
     var updatedAt: LocalDateTime = LocalDateTime.now()

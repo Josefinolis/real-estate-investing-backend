@@ -4,16 +4,21 @@ import com.realstate.domain.entity.OperationType
 import com.realstate.domain.entity.Property
 import com.realstate.domain.entity.PropertySource
 import com.realstate.domain.entity.PropertyType
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.springframework.stereotype.Component
 
 @Component
 class FotocasaScraper(
-    rateLimiter: RateLimiter
+    rateLimiter: RateLimiter,
+    private val browserManager: PlaywrightBrowserManager
 ) : BaseScraper(rateLimiter) {
 
     override val source = PropertySource.FOTOCASA
     override val baseUrl = "https://www.fotocasa.es"
+
+    // Selector to wait for - indicates page has loaded (updated for current Fotocasa HTML structure)
+    private val waitForSelector = "article, [data-testid='re-SearchResult'], a[href*='/vivienda/']"
 
     private val searchUrls = listOf(
         "$baseUrl/es/comprar/viviendas/madrid-capital/todas-las-zonas/l",
@@ -102,13 +107,24 @@ class FotocasaScraper(
     }
 
     private fun scrapeSearchPage(url: String): List<Property> {
-        val document = fetchDocument(url) ?: return emptyList()
-        val properties = mutableListOf<Property>()
+        // Use Playwright for Fotocasa (requires JavaScript rendering)
+        rateLimiter.acquire()
+        val document = browserManager.fetchPageWithRetry(url, waitForSelector) ?: run {
+            logger.warn("Failed to fetch page with Playwright: $url")
+            return emptyList()
+        }
 
+        val properties = mutableListOf<Property>()
         val operationType = if (url.contains("alquiler")) OperationType.ALQUILER else OperationType.VENTA
         val city = extractCityFromUrl(url)
 
-        val items = document.select("article.re-CardPackPremium, article.re-CardPackMinimal")
+        // Updated selectors for current Fotocasa HTML structure (Tailwind CSS based)
+        // Articles contain property cards - filter by those with property links
+        val items = document.select("article").filter { article ->
+            article.select("a[href*='/vivienda/']").isNotEmpty()
+        }
+
+        logger.info("Found ${items.size} property items on page: $url")
 
         for (item in items) {
             try {
@@ -125,36 +141,59 @@ class FotocasaScraper(
     }
 
     private fun parsePropertyItem(item: Element, operationType: OperationType, city: String): Property? {
-        val linkElement = item.selectFirst("a.re-CardPackPremium-info, a.re-CardPackMinimal-info")
-            ?: item.selectFirst("a[href*='/vivienda/']")
-            ?: return null
+        // Updated parsing for current Fotocasa HTML structure (Tailwind CSS based)
+        val linkElement = item.selectFirst("a[href*='/vivienda/']") ?: return null
 
         val href = linkElement.attr("href")
         val externalId = extractIdFromUrl(href) ?: return null
 
-        val title = item.selectFirst(".re-CardTitle, .re-CardPackPremium-title")?.text()?.trim()
-        val priceText = item.selectFirst(".re-CardPrice, .re-CardPackPremium-price")?.text()
+        // Get all text content to search for title, price, and features
+        val itemText = item.text()
+
+        // Extract title from headline class or first meaningful text
+        val title = item.selectFirst(".text-subhead, .text-headline-2")?.text()?.trim()
+            ?: item.selectFirst("a[href*='/vivienda/']")?.text()?.takeIf { it.length > 10 }?.trim()
+
+        // Extract price - look for pattern like "889.000 €"
+        val priceText = extractPriceText(itemText)
         val price = extractPrice(priceText)
 
-        val features = item.select(".re-CardFeatures-feature, .re-CardPackPremium-feature")
+        // Extract features from list items
+        val featureItems = item.select("li")
         var rooms: Int? = null
         var area: java.math.BigDecimal? = null
         var bathrooms: Int? = null
 
-        for (feature in features) {
-            val text = feature.text().lowercase()
+        for (featureItem in featureItems) {
+            val text = featureItem.text().lowercase()
             when {
-                text.contains("hab") -> rooms = extractNumber(text)
-                text.contains("m²") || text.contains("m2") -> area = extractArea(text)
-                text.contains("baño") -> bathrooms = extractNumber(text)
+                text.contains("hab") && rooms == null -> rooms = extractNumber(text)
+                (text.contains("m²") || text.contains("m2")) && area == null -> area = extractArea(text)
+                text.contains("baño") && bathrooms == null -> bathrooms = extractNumber(text)
             }
         }
 
-        val address = item.selectFirst(".re-CardAddress, .re-CardPackPremium-address")?.text()?.trim()
-        val zone = item.selectFirst(".re-CardZone")?.text()?.trim()
+        // Fallback: search in full item text
+        if (area == null) {
+            val areaMatch = Regex("(\\d+)\\s*m[²2]").find(itemText)
+            area = areaMatch?.groupValues?.get(1)?.toBigDecimalOrNull()
+        }
+        if (rooms == null) {
+            val roomsMatch = Regex("(\\d+)\\s*hab").find(itemText.lowercase())
+            rooms = roomsMatch?.groupValues?.get(1)?.toIntOrNull()
+        }
+        if (bathrooms == null) {
+            val bathMatch = Regex("(\\d+)\\s*baño").find(itemText.lowercase())
+            bathrooms = bathMatch?.groupValues?.get(1)?.toIntOrNull()
+        }
 
-        val imageUrl = item.selectFirst("img.re-CardPhoto, img.re-CardPackPremium-photo")?.attr("src")
-        val imageUrls = if (imageUrl != null) arrayOf(imageUrl) else null
+        // Extract address from location text
+        val address = item.selectFirst(".text-body-2")?.text()?.trim()
+
+        // Extract image URL
+        val imageUrl = item.selectFirst("img[src*='http']")?.attr("src")
+            ?: item.selectFirst("img")?.attr("src")
+        val imageUrls = if (imageUrl != null && imageUrl.startsWith("http")) arrayOf(imageUrl) else null
 
         val propertyType = inferPropertyType(title)
 
@@ -170,10 +209,16 @@ class FotocasaScraper(
             areaM2 = area,
             address = address,
             city = city,
-            zone = zone,
+            zone = null,
             imageUrls = imageUrls,
             url = if (href.startsWith("http")) href else "$baseUrl$href"
         )
+    }
+
+    private fun extractPriceText(text: String): String? {
+        // Match patterns like "889.000 €" or "1.200.000 €"
+        val priceMatch = Regex("([\\d.]+)\\s*€").find(text)
+        return priceMatch?.groupValues?.get(0)
     }
 
     private fun extractIdFromUrl(url: String): String? {

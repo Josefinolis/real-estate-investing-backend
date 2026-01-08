@@ -7,13 +7,30 @@ import com.realstate.domain.entity.PropertyType
 import org.jsoup.nodes.Element
 import org.springframework.stereotype.Component
 
+/**
+ * Scraper para Idealista.com
+ *
+ * IMPORTANTE: Este scraper está DESHABILITADO por defecto debido a que Idealista
+ * utiliza DataDome, un servicio de protección anti-bot comercial que bloquea
+ * navegadores automatizados incluyendo Playwright.
+ *
+ * Opciones para usar Idealista:
+ * 1. API oficial de Idealista (requiere solicitud empresarial)
+ * 2. Servicios de scraping profesional (ScraperAPI, Bright Data, etc.)
+ * 3. Proxies residenciales rotativos
+ *
+ * El código se mantiene por si se implementa alguna de estas soluciones en el futuro.
+ */
 @Component
 class IdealistaScraper(
-    rateLimiter: RateLimiter
+    rateLimiter: RateLimiter,
+    private val browserManager: PlaywrightBrowserManager
 ) : BaseScraper(rateLimiter) {
 
     override val source = PropertySource.IDEALISTA
     override val baseUrl = "https://www.idealista.com"
+
+    private val waitForSelector = "article.item, .item-info-container, .listing-items"
 
     // Data class for location info (city/municipality -> slug, province)
     data class LocationInfo(val slug: String, val province: String)
@@ -266,13 +283,25 @@ class IdealistaScraper(
     }
 
     private fun scrapeSearchPage(url: String): List<Property> {
-        val document = fetchDocument(url) ?: return emptyList()
-        val properties = mutableListOf<Property>()
+        // Use Playwright for Idealista (requires JavaScript rendering)
+        rateLimiter.acquire()
+        val document = browserManager.fetchPageWithRetry(url, waitForSelector) ?: run {
+            logger.warn("Failed to fetch page with Playwright: $url")
+            return emptyList()
+        }
 
+        val properties = mutableListOf<Property>()
         val operationType = if (url.contains("alquiler")) OperationType.ALQUILER else OperationType.VENTA
         val locationData = extractLocationFromUrl(url)
 
-        val items = document.select("article.item")
+        // Try multiple selectors as Idealista may change their HTML structure
+        val items = document.select("article.item").ifEmpty {
+            document.select(".item-info-container").ifEmpty {
+                document.select("[data-element-id]")
+            }
+        }
+
+        logger.info("Found ${items.size} property items on page: $url")
 
         for (item in items) {
             try {
